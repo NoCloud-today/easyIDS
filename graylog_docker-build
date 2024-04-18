@@ -1,0 +1,56 @@
+version: '3'  # Specifies the version of the Docker Compose file format
+
+services:  # Defines the services that make up the application
+
+  # MongoDB service configuration
+  mongo:
+    image: mongo:5.0.13 
+    networks:
+      - graylog  # Connects this service to the 'graylog' network
+
+  # Elasticsearch service configuration
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch-oss:7.10.2  # Elasticsearch image from Elastic's official Docker repository
+    environment:
+      - http.host=0.0.0.0  # Configures Elasticsearch to bind to all network interfaces
+      - transport.host=localhost  # Communication between nodes through localhost
+      - network.host=0.0.0.0  # Configures Elasticsearch to bind to all network interfaces
+      - "ES_JAVA_OPTS=-Dlog4j2.formatMsgNoLookups=true -Xms512m -Xmx512m"  # Java options for Elasticsearch, including memory settings
+    ulimits:
+      memlock:
+        soft: -1  # Removes soft memory lock limit
+        hard: -1  # Removes hard memory lock limit
+    deploy:
+      resources:
+        limits:
+          memory: 1g  # Limits container to use a maximum of 1 GB of memory
+    networks:
+      - graylog  # Connects this service to the 'graylog' network
+
+  # Graylog service configuration
+  graylog:
+    image: graylog/graylog:5.0  
+    environment:
+      - GRAYLOG_PASSWORD_SECRET=somepasswordpepper  # Secret used for password encryption (change this value in production)
+      - GRAYLOG_ROOT_PASSWORD_SHA2=8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918  # SHA2 hash of the Graylog root password
+      - GRAYLOG_HTTP_EXTERNAL_URI=http://127.0.0.1:9000/  # External URI for Graylog web interface
+    entrypoint: /usr/bin/tini -- wait-for-it elasticsearch:9200 -- /docker-entrypoint.sh  # Custom entrypoint script that waits for Elasticsearch before starting
+    networks:
+      - graylog  # Connects this service to the 'graylog' network
+    restart: always  # Ensures that the Graylog service restarts automatically after crashes
+    depends_on:
+      - mongo  # Depends on MongoDB being ready before starting
+      - elasticsearch  # Depends on Elasticsearch being ready before starting
+    ports:
+      - 9000:9000  # Maps port 9000 of the container to port 9000 on the host for the web interface
+      - 1514:1514  # Maps port 1514 for Syslog TCP
+      - 1514:1514/udp  # Maps port 1514 for Syslog UDP
+      - 12201:12201  # Maps port 12201 for GELF TCP
+      - 12201:12201/udp  # Maps port 12201 for GELF UDP
+
+networks:
+  graylog:
+    driver: bridge  # Configures the network to use the bridge driver
+
+# This configuration sets up a basic but complete environment for Graylog along with its dependencies, MongoDB and Elasticsearch.
+# All components are linked via a custom network, which improves security and communication efficiency between containers.
