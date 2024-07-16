@@ -2,8 +2,8 @@
 
 LOG_FILE="$1/eve.json"
 
-BOT_TOKEN="6992941292:AAHJct-m1w1j59DwiWaMjg2-IFEZWMzUfPQ"
-CHAT_ID="-4240684394"
+BOT_TOKEN="BOT_TOKEN"
+CHAT_ID="CHAT_ID"
 
 # Running inotifywait to monitor changes in the file
 inotifywait -m -e modify "$LOG_FILE" | while read -r directory events filename; do
